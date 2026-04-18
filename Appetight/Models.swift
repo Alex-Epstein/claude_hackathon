@@ -179,3 +179,26 @@ struct GymData: Codable {
     let bestTimes: [String]
     let reason: String
 }
+
+// MARK: - Route-aware meal planning
+
+/// A food stop opportunity between two consecutive calendar events.
+struct RouteStop: Identifiable {
+    var id = UUID()
+    let fromEvent: CalendarEvent
+    let toEvent: CalendarEvent
+    var restaurants: [RouteRestaurant] = []
+}
+
+/// A restaurant found on the route between two events, with AI-suggested menu items.
+struct RouteRestaurant: Identifiable {
+    let placeId: String
+    var id: String { placeId }
+    let name: String
+    let vicinity: String
+    let distanceMeters: Int
+    var distanceLabel: String {
+        distanceMeters < 1000 ? "\(distanceMeters)m" : String(format: "%.1fkm", Double(distanceMeters) / 1000)
+    }
+    var menuItems: [MenuItem] = []
+}

@@ -8,9 +8,9 @@ import CoreLocation
 
 struct GymView: View {
     @State private var loading = false
+    @State private var analyzingAll = false
     @State private var gyms: [NearbyGym] = []
-    @State private var analyses: [String: GymData] = [:]   // placeId → data
-    @State private var analyzing: String? = nil             // placeId being analyzed
+    @State private var analyses: [String: GymData] = [:]
     @State private var errorMessage: String?
 
     var body: some View {
@@ -31,7 +31,7 @@ struct GymView: View {
                 HStack {
                     if loading { ProgressView().tint(.white) }
                     Image(systemName: "location.magnifyingglass")
-                    Text(loading ? "Searching..." : "Find Gyms Near Me")
+                    Text(loading ? "Searching…" : "Find Gyms Near Me")
                         .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
@@ -39,7 +39,16 @@ struct GymView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(loading)
+            .disabled(loading || analyzingAll)
+
+            if analyzingAll {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Analyzing busy times for all gyms…")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 4)
+            }
 
             if let errorMessage {
                 Text(errorMessage)
@@ -60,7 +69,7 @@ struct GymView: View {
     @ViewBuilder
     private func gymCard(_ gym: NearbyGym) -> some View {
         let data = analyses[gym.placeId]
-        let isAnalyzing = analyzing == gym.placeId
+        let isPending = analyzingAll && data == nil
 
         VStack(alignment: .leading, spacing: 10) {
             // Header
@@ -84,20 +93,8 @@ struct GymView: View {
                 }
                 Spacer()
 
-                if data == nil {
-                    Button {
-                        Task { await analyzeGym(gym) }
-                    } label: {
-                        if isAnalyzing {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label("Analyze", systemImage: "chart.bar.fill")
-                                .font(.caption)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isAnalyzing)
+                if isPending {
+                    ProgressView().controlSize(.small)
                 }
             }
 
@@ -122,6 +119,9 @@ struct GymView: View {
 
                 // Chart
                 busyChart(d)
+            } else if isPending {
+                Text("Analyzing busy times…")
+                    .font(.caption2).foregroundStyle(.secondary).italic()
             }
         }
         .padding(12)
@@ -179,6 +179,7 @@ struct GymView: View {
     private func loadGyms() async {
         loading = true
         errorMessage = nil
+        analyses = [:]
         defer { loading = false }
         do {
             let loc = try await LocationService.shared.requestLocation()
@@ -186,20 +187,40 @@ struct GymView: View {
                 lat: loc.coordinate.latitude,
                 lng: loc.coordinate.longitude
             )
-            if gyms.isEmpty { errorMessage = "No gyms found nearby." }
+            if gyms.isEmpty {
+                errorMessage = "No gyms found nearby."
+            } else {
+                await analyzeAllGyms()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func analyzeGym(_ gym: NearbyGym) async {
-        analyzing = gym.placeId
-        defer { analyzing = nil }
-        do {
-            let data = try await AnthropicService.shared.gymBusyTimes(gymName: gym.name)
-            analyses[gym.placeId] = data
-        } catch {
-            errorMessage = error.localizedDescription
+    private func analyzeAllGyms() async {
+        analyzingAll = true
+        defer { analyzingAll = false }
+
+        // Run all gym analyses in parallel, collect results, then update state once
+        let gymSnapshot = gyms
+        var results: [(String, GymData)] = []
+
+        await withTaskGroup(of: (String, GymData?).self) { group in
+            for gym in gymSnapshot {
+                let name = gym.name
+                let placeId = gym.placeId
+                group.addTask {
+                    let data = try? await AnthropicService.shared.gymBusyTimes(gymName: name)
+                    return (placeId, data)
+                }
+            }
+            for await (placeId, data) in group {
+                if let data { results.append((placeId, data)) }
+            }
+        }
+
+        for (placeId, data) in results {
+            analyses[placeId] = data
         }
     }
 }

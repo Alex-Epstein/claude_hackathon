@@ -11,6 +11,8 @@ struct CalendarEvent {
     let title: String
     let startDate: Date
     let endDate: Date
+    /// Parses "@ Location Name" from the title, e.g. "Meeting @ TSQ Atlanta" → "TSQ Atlanta"
+    var extractedLocation: String? { CalendarService.extractLocation(from: title) }
     var startString: String {
         let f = DateFormatter(); f.timeStyle = .short; return f.string(from: startDate)
     }
@@ -38,6 +40,19 @@ final class CalendarService: ObservableObject {
         return authorized
     }
 
+    /// Events from NOW through end of day (rest of day only).
+    func restOfDayEvents() -> [CalendarEvent] {
+        guard authorized else { return [] }
+        let cal = Calendar.current
+        let start = Date()
+        let end = cal.startOfDay(for: cal.date(byAdding: .day, value: 1, to: Date())!)
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        return store.events(matching: predicate)
+            .filter { !$0.isAllDay }
+            .sorted { $0.startDate < $1.startDate }
+            .map { CalendarEvent(title: $0.title ?? "Event", startDate: $0.startDate, endDate: $0.endDate) }
+    }
+
     func todayEvents() -> [CalendarEvent] {
         guard authorized else { return [] }
         let cal = Calendar.current
@@ -48,6 +63,15 @@ final class CalendarService: ObservableObject {
             .filter { !$0.isAllDay }
             .sorted { $0.startDate < $1.startDate }
             .map { CalendarEvent(title: $0.title ?? "Event", startDate: $0.startDate, endDate: $0.endDate) }
+    }
+
+    /// Extracts the location string after "@" in an event title.
+    /// "Meeting @ TSQ Atlanta" → "TSQ Atlanta"
+    static func extractLocation(from title: String) -> String? {
+        guard let atIdx = title.firstIndex(of: "@") else { return nil }
+        let after = title[title.index(after: atIdx)...]
+            .trimmingCharacters(in: .whitespaces)
+        return after.isEmpty ? nil : String(after)
     }
 
     func addMealEvent(title: String, at date: Date, calories: Int, notes: String) throws {

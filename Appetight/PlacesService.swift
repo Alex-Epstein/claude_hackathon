@@ -49,6 +49,25 @@ actor PlacesService {
         return phone
     }
 
+    /// Geocodes a query string (e.g. "TSQ Atlanta") into lat/lng coordinates.
+    func geocodeLocation(_ query: String) async -> (lat: Double, lng: Double)? {
+        let key = apiKey()
+        guard !key.isEmpty else { return nil }
+        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://maps.googleapis.com/maps/api/geocode/json?address=\(encoded)&key=\(key)")
+        else { return nil }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let results = json["results"] as? [[String: Any]],
+              let first = results.first,
+              let geometry = first["geometry"] as? [String: Any],
+              let location = geometry["location"] as? [String: Any],
+              let lat = location["lat"] as? Double,
+              let lng = location["lng"] as? Double
+        else { return nil }
+        return (lat, lng)
+    }
+
     func nearbyGyms(lat: Double, lng: Double, radius: Int = 5000) async throws -> [NearbyGym] {
         let key = apiKey()
         guard !key.isEmpty else { throw PlacesError.missingKey }
