@@ -4,6 +4,14 @@
 //
 
 import SwiftUI
+import UIKit
+
+// Dismiss keyboard when tapping outside the input
+extension View {
+    func dismissKeyboardOnTap() -> some View {
+        self.onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+    }
+}
 
 struct CoachMessage: Identifiable {
     let id = UUID()
@@ -25,11 +33,21 @@ struct CoachView: View {
         return name.trimmingCharacters(in: .whitespaces).isEmpty ? "there" : name
     }
 
+    @FocusState private var inputFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             messageList
+                .dismissKeyboardOnTap()
             Divider()
             inputBar
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { inputFocused = false }
+                    .fontWeight(.semibold)
+            }
         }
         .task {
             guard !hasGreeted else { return }
@@ -66,6 +84,7 @@ struct CoachView: View {
     private var inputBar: some View {
         HStack(spacing: 8) {
             TextField("Ask your coach...", text: $inputText, axis: .vertical)
+                .focused($inputFocused)
                 .lineLimit(1...4)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
