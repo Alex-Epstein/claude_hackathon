@@ -191,7 +191,7 @@ struct RestaurantCard: View {
             }
         }
         .padding(12)
-        .background(.white, in: .rect(cornerRadius: 12))
+        .background(Color(.systemBackground), in: .rect(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(.gray.opacity(0.15)))
     }
 

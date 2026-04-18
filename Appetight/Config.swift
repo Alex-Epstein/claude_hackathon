@@ -9,13 +9,7 @@
 import Foundation
 
 nonisolated enum APIKeyStore {
-    static let anthropicKey = "anthropic_api_key"
-    static let googleMapsKey = "google_maps_api_key"
-
-    static var anthropic: String {
-        UserDefaults.standard.string(forKey: anthropicKey) ?? ""
-    }
-    static var googleMaps: String {
-        UserDefaults.standard.string(forKey: googleMapsKey) ?? ""
-    }
+    // Paste your keys here before building
+    static let anthropic = ""
+    static let googleMaps = ""
 }

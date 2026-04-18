@@ -10,9 +10,6 @@ struct SettingsView: View {
     @EnvironmentObject var notifications: NotificationService
     @Environment(\.dismiss) var dismiss
 
-    @AppStorage(APIKeyStore.anthropicKey) private var anthropicKey: String = ""
-    @AppStorage(APIKeyStore.googleMapsKey) private var googleMapsKey: String = ""
-
     @State private var showResetConfirm = false
 
     var body: some View {
@@ -25,26 +22,6 @@ struct SettingsView: View {
                         LabeledContent("TDEE", value: "\(p.tdee) kcal")
                         LabeledContent("Goal", value: p.goal.label)
                     }
-                }
-
-                Section {
-                    SecureField("sk-ant-...", text: $anthropicKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                } header: {
-                    Text("Anthropic API key")
-                } footer: {
-                    Text("Required for camera, voice, restaurants, and gym analysis.")
-                }
-
-                Section {
-                    SecureField("AIza...", text: $googleMapsKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                } header: {
-                    Text("Google Maps API key")
-                } footer: {
-                    Text("Required for \"I'm Hungry\" and gym finder. Enable Places API.")
                 }
 
                 Section("Notifications") {

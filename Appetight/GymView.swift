@@ -80,7 +80,7 @@ struct GymView: View {
             busyChart(d)
         }
         .padding(14)
-        .background(.white, in: .rect(cornerRadius: 12))
+        .background(Color(.systemBackground), in: .rect(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(.gray.opacity(0.15)))
     }
 

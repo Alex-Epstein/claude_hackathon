@@ -30,8 +30,6 @@ struct DashboardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var notifications: NotificationService
 
-    @AppStorage(APIKeyStore.anthropicKey) private var anthropicKey: String = ""
-
     @State private var tab: MainTab = .today
     @State private var showingSettings = false
     @State private var showingCamera = false
@@ -70,9 +68,6 @@ struct DashboardView: View {
                 VStack(spacing: 16) {
                     if !notifications.authorized {
                         enableNotificationsBanner
-                    }
-                    if anthropicKey.isEmpty {
-                        setupApiBanner
                     }
 
                     summaryCard
@@ -148,7 +143,7 @@ struct DashboardView: View {
             )
         }
         .padding()
-        .background(.white, in: .rect(cornerRadius: 16))
+        .background(Color(.systemBackground), in: .rect(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
     }
 
@@ -183,7 +178,7 @@ struct DashboardView: View {
                     }
                 }
             }
-            .background(.white, in: .rect(cornerRadius: 12))
+            .background(Color(.systemBackground), in: .rect(cornerRadius: 12))
         }
     }
 
@@ -202,28 +197,6 @@ struct DashboardView: View {
         }
         .padding(12)
         .background(Brand.orange.opacity(0.1), in: .rect(cornerRadius: 10))
-    }
-
-    private var setupApiBanner: some View {
-        Button {
-            showingSettings = true
-        } label: {
-            HStack {
-                Image(systemName: "key.fill").foregroundStyle(Brand.blue)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Add your API keys").font(.subheadline).fontWeight(.medium)
-                    Text("Needed for AI food analysis & restaurants")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption)
-            }
-            .padding(12)
-            .background(Brand.blue.opacity(0.08), in: .rect(cornerRadius: 10))
-            .foregroundStyle(.primary)
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Other tabs
