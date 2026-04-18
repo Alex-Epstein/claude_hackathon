@@ -2,10 +2,6 @@
 //  CoachView.swift
 //  Appetight
 //
-//  Adaptive AI coach backed by Honcho memory. Combines Honcho's semantic
-//  conversation history with the local personaContext analytics for richer
-//  personalisation than either layer alone.
-//
 
 import SwiftUI
 
@@ -13,7 +9,6 @@ struct CoachMessage: Identifiable {
     let id = UUID()
     let role: MessageRole
     let text: String
-
     enum MessageRole { case user, coach }
 }
 
@@ -23,31 +18,23 @@ struct CoachView: View {
     @State private var messages: [CoachMessage] = []
     @State private var inputText = ""
     @State private var isTyping = false
-    @State private var isUnavailable = false
     @State private var hasGreeted = false
 
-    private var peerName: String {
+    private var userName: String {
         let name = appState.profile?.name ?? ""
-        return name.trimmingCharacters(in: .whitespaces).isEmpty ? "user" : name
+        return name.trimmingCharacters(in: .whitespaces).isEmpty ? "there" : name
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            if isUnavailable && messages.isEmpty {
-                unavailablePlaceholder
-            } else {
-                messageList
-                Divider()
-                inputBar
-            }
+            messageList
+            Divider()
+            inputBar
         }
         .task {
             guard !hasGreeted else { return }
             hasGreeted = true
-            await fetchCoachResponse(
-                query: "Greet this user and give them a personalized tip based on what you know about them so far.",
-                logToHoncho: false
-            )
+            await fetchReply(query: "Greet this user by name and give a quick personalized tip based on their eating pattern today.")
         }
     }
 
@@ -60,10 +47,7 @@ struct CoachView: View {
                     ForEach(messages) { msg in
                         ChatBubble(message: msg)
                     }
-                    if isTyping {
-                        TypingBubble()
-                            .transition(.opacity)
-                    }
+                    if isTyping { TypingBubble().transition(.opacity) }
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding()
@@ -100,22 +84,6 @@ struct CoachView: View {
         .padding(.vertical, 8)
     }
 
-    private var unavailablePlaceholder: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text("Coach unavailable")
-                .font(.headline)
-            Text("Add your Honcho API key in Config.swift to enable the adaptive coach.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
     private var canSend: Bool {
         !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isTyping
     }
@@ -127,27 +95,34 @@ struct CoachView: View {
         guard !text.isEmpty else { return }
         inputText = ""
         messages.append(CoachMessage(role: .user, text: text))
-        await fetchCoachResponse(query: text, logToHoncho: true)
+        await fetchReply(query: text)
     }
 
-    private func fetchCoachResponse(query: String, logToHoncho: Bool) async {
+    private func fetchReply(query: String) async {
         isTyping = true
         defer { isTyping = false }
+
+        // Build history in Anthropic format (must alternate user/assistant)
+        var history: [(role: String, content: String)] = []
+        for msg in messages {
+            history.append((role: msg.role == .user ? "user" : "assistant", content: msg.text))
+        }
+        // If last message isn't user, add the query as user
+        if history.last?.role != "user" {
+            history.append((role: "user", content: query))
+        }
+
+        let ctx = appState.personaContext.isEmpty ? nil : appState.personaContext
+
         do {
-            try await HonchoService.shared.ensurePeer(name: peerName)
-            if logToHoncho {
-                try? await HonchoService.shared.logMessage(query, peerName: peerName)
-            }
-            let ctx = appState.personaContext.isEmpty ? nil : appState.personaContext
-            let reply = try await HonchoService.shared.coachResponse(
-                query: query,
-                peerName: peerName,
-                personaContext: ctx
+            let reply = try await AnthropicService.shared.coachReply(
+                history: history,
+                personaContext: ctx,
+                userName: userName
             )
             messages.append(CoachMessage(role: .coach, text: reply))
-            isUnavailable = false
         } catch {
-            isUnavailable = true
+            messages.append(CoachMessage(role: .coach, text: "Sorry, I couldn't connect right now. Try again in a moment."))
         }
     }
 }
@@ -156,7 +131,6 @@ struct CoachView: View {
 
 private struct ChatBubble: View {
     let message: CoachMessage
-
     private var isUser: Bool { message.role == .user }
 
     var body: some View {

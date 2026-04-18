@@ -36,6 +36,19 @@ actor PlacesService {
         return try parseRestaurants(data: data, originLat: lat, originLng: lng)
     }
 
+    func fetchPhoneNumber(placeId: String) async -> String? {
+        let key = apiKey()
+        guard !key.isEmpty else { return nil }
+        let urlString = "https://maps.googleapis.com/maps/api/place/details/json?place_id=\(placeId)&fields=formatted_phone_number&key=\(key)"
+        guard let url = URL(string: urlString) else { return nil }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let result = json["result"] as? [String: Any],
+              let phone = result["formatted_phone_number"] as? String
+        else { return nil }
+        return phone
+    }
+
     func nearbyGyms(lat: Double, lng: Double, radius: Int = 3000) async throws -> [String] {
         let key = apiKey()
         guard !key.isEmpty else { throw PlacesError.missingKey }

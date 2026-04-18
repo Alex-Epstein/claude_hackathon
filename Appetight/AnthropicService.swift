@@ -245,6 +245,34 @@ actor AnthropicService {
         return try decodeGymData(raw)
     }
 
+    // MARK: - Coach chat
+
+    func coachReply(
+        history: [(role: String, content: String)],
+        personaContext: String?,
+        userName: String
+    ) async throws -> String {
+        let key = apiKey()
+        guard !key.isEmpty else { throw AnthropicError.missingKey }
+
+        let systemPrompt = """
+        You are \(userName)'s personal nutrition and fitness coach. Be warm, encouraging, and concise — keep replies to 2–3 sentences max.
+        Personalize every response using what you know about them.
+        \(personaContext ?? "")
+        """
+
+        let messages = history.map { ["role": $0.role, "content": $0.content] }
+
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 512,
+            "system": systemPrompt,
+            "messages": messages,
+        ]
+
+        return try await sendRequest(body: body, apiKey: key)
+    }
+
     // MARK: - HTTP
 
     private func sendRequest(body: [String: Any], apiKey: String) async throws -> String {

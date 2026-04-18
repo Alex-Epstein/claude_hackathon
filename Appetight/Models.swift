@@ -98,6 +98,7 @@ struct Restaurant: Identifiable, Codable {
     let distanceMeters: Int
     let types: [String]
     var cuisine: String?
+    var phoneNumber: String?
     var menuItems: [MenuItem]?
     // Legacy alias used by log helper
     var healthiestOption: MenuItem? { menuItems?.first }

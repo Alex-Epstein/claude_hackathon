@@ -143,6 +143,8 @@ struct HungryView: View {
 struct RestaurantCard: View {
     let restaurant: Restaurant
     let onLog: (MenuItem) -> Void
+    @State private var phoneNumber: String? = nil
+    @State private var fetchingPhone = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -176,6 +178,21 @@ struct RestaurantCard: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
+
+                    Button {
+                        Task { await callRestaurant() }
+                    } label: {
+                        if fetchingPhone {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Label("Call", systemImage: "phone.fill")
+                                .font(.caption2)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    .tint(.green)
+                    .disabled(fetchingPhone)
                 }
             }
 
@@ -238,6 +255,27 @@ struct RestaurantCard: View {
             rank == 1 ? Brand.green.opacity(0.07) : Color(.systemGroupedBackground),
             in: .rect(cornerRadius: 8)
         )
+    }
+
+    private func callRestaurant() async {
+        // Use cached number if available
+        if let number = phoneNumber ?? restaurant.phoneNumber {
+            dial(number)
+            return
+        }
+        fetchingPhone = true
+        defer { fetchingPhone = false }
+        if let number = await PlacesService.shared.fetchPhoneNumber(placeId: restaurant.placeId) {
+            phoneNumber = number
+            dial(number)
+        }
+    }
+
+    private func dial(_ number: String) {
+        let digits = number.filter { $0.isNumber || $0 == "+" }
+        if let url = URL(string: "tel://\(digits)") {
+            UIApplication.shared.open(url)
+        }
     }
 
     private func openMaps() {
