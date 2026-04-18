@@ -160,7 +160,10 @@ struct CameraLoggerView: View {
 
         let base64 = data.base64EncodedString()
         do {
-            analysis = try await AnthropicService.shared.analyzeFoodImage(base64Jpeg: base64)
+            analysis = try await AnthropicService.shared.analyzeFoodImage(
+                base64Jpeg: base64,
+                persona: fetchPersona() // fetch from SwiftData context
+            )
         } catch {
             errorMessage = error.localizedDescription
         }

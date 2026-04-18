@@ -83,19 +83,24 @@ actor AnthropicService {
     func analyzeFoodImage(base64Jpeg: String) async throws -> FoodAnalysis {
         let key = apiKey()
         guard !key.isEmpty else { throw AnthropicError.missingKey }
-
         let systemPrompt = """
-        You are a nutrition expert. Analyze food images and reply ONLY with a JSON object:
-        {
-          "name": "food name",
-          "calories": number,
-          "protein_g": number,
-          "carbs_g": number,
-          "fat_g": number,
-          "serving_description": "e.g. 1 cup, 200g"
-        }
-        If multiple foods, sum the totals. Be accurate and concise.
+        You are a nutrition analysis expert. Analyze the food in the image and return a JSON object with:
+        { "name": string, "calories": int, "proteinG": float, "carbsG": float, "fatG": float, "servingDescription": string }
+        Return ONLY the JSON, no markdown, no explanation.
+        \(persona?.claudeContext ?? "")
         """
+        // let systemPrompt = """
+        // You are a nutrition expert. Analyze food images and reply ONLY with a JSON object:
+        // {
+        //   "name": "food name",
+        //   "calories": number,
+        //   "protein_g": number,
+        //   "carbs_g": number,
+        //   "fat_g": number,
+        //   "serving_description": "e.g. 1 cup, 200g"
+        // }
+        // If multiple foods, sum the totals. Be accurate and concise.
+        // """
 
         let body: [String: Any] = [
             "model": model,

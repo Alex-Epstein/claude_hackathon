@@ -49,6 +49,21 @@ final class AppState: ObservableObject {
 
     func addMeal(_ meal: MealLog) {
         meals.append(meal)
+        // Inside addMeal(_ meal: MealLog):
+        // ADD these after you append the meal to your array/store:
+        if let persona = fetchOrCreatePersona() {
+            PersonaEngine.shared.update(persona: persona, with: meal)
+        }
+    }
+
+    func fetchOrCreatePersona() -> UserPersona? {
+        let descriptor = FetchDescriptor<UserPersona>()
+        if let existing = try? modelContext.fetch(descriptor).first {
+            return existing
+        }
+        let new = UserPersona()
+        modelContext.insert(new)
+        return new
     }
 
     func removeMeal(id: UUID) {
