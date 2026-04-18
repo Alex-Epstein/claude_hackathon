@@ -183,10 +183,20 @@ struct ImagePicker: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         switch source {
         case .camera:
-            let p = UIImagePickerController()
-            p.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+            #if targetEnvironment(simulator)
+            // Simulator can't use camera — fall back to photo picker
+            var cfg = PHPickerConfiguration(photoLibrary: .shared())
+            cfg.filter = .images
+            cfg.selectionLimit = 1
+            let p = PHPickerViewController(configuration: cfg)
             p.delegate = context.coordinator
             return p
+            #else
+            let p = UIImagePickerController()
+            p.sourceType = .camera
+            p.delegate = context.coordinator
+            return p
+            #endif
         case .library:
             var cfg = PHPickerConfiguration(photoLibrary: .shared())
             cfg.filter = .images
