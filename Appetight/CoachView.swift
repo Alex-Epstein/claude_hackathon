@@ -2,14 +2,27 @@
 //  CoachView.swift
 //  Appetight
 //
-//  Adaptive AI coach backed by Honcho memory.
-//  Coach replies are spoken via ElevenLabs and shown as voice message bubbles.
+//  Adaptive AI coach. Replies are spoken via ElevenLabs and shown as voice bubbles.
 //
 
 import SwiftUI
 import AVFoundation
 import Combine
 import AVFAudio
+#if canImport(UIKit)
+import UIKit
+#endif
+
+// Dismiss keyboard when tapping outside the input
+extension View {
+    func dismissKeyboardOnTap() -> some View {
+        #if canImport(UIKit)
+        return self.onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+        #else
+        return self
+        #endif
+    }
+}
 
 // MARK: - Models
 
@@ -18,7 +31,7 @@ struct CoachMessage: Identifiable {
     let role: MessageRole
     let text: String
     var audioData: Data? = nil
-    var audioError: String? = nil  // set if ElevenLabs fails
+    var audioError: String? = nil
 
     enum MessageRole { case user, coach }
 }
@@ -31,7 +44,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
 
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
-    private let boostVolume: Float = 3.0  // amplify beyond AVAudioPlayer's 1.0 cap
+    private let boostVolume: Float = 3.0
 
     override init() {
         super.init()
@@ -50,7 +63,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         playerNode.stop()
         engine.stop()
 
-        // Write to temp file so AVAudioFile can read format metadata
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("coach_audio.mp3")
         do {
             try data.write(to: tmp)
@@ -84,28 +96,31 @@ struct CoachView: View {
     @State private var errorDetail: String? = nil
     @State private var hasGreeted = false
 
-    private var peerName: String {
+    private var userName: String {
         let name = appState.profile?.name ?? ""
         return name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "user" : name
     }
 
+    @FocusState private var inputFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
-            if isUnavailable && messages.isEmpty {
-                unavailablePlaceholder
-            } else {
-                messageList
-                Divider()
-                inputBar
+            messageList
+                .dismissKeyboardOnTap()
+            Divider()
+            inputBar
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { inputFocused = false }
+                    .fontWeight(.semibold)
             }
         }
         .task {
             guard !hasGreeted else { return }
             hasGreeted = true
-            await fetchCoachResponse(
-                query: "Greet this user and give them a personalized tip based on what you know about them so far.",
-                logToHoncho: false
-            )
+            await fetchReply(query: "Greet this user by name and give a quick personalized tip based on their eating pattern today.")
         }
     }
 
@@ -118,7 +133,7 @@ struct CoachView: View {
                     ForEach(messages) { msg in
                         MessageRow(message: msg, audioManager: audioManager)
                     }
-                    if isTyping { TypingBubble() }
+                    if isTyping { TypingBubble().transition(.opacity) }
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding()
@@ -133,6 +148,7 @@ struct CoachView: View {
     private var inputBar: some View {
         HStack(spacing: 8) {
             TextField("Ask your coach...", text: $inputText, axis: .vertical)
+                .focused($inputFocused)
                 .lineLimit(1...4)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -176,28 +192,34 @@ struct CoachView: View {
         guard !text.isEmpty else { return }
         inputText = ""
         messages.append(CoachMessage(role: .user, text: text))
-        await fetchCoachResponse(query: text, logToHoncho: true)
+        await fetchReply(query: text)
     }
 
-    private func fetchCoachResponse(query: String, logToHoncho: Bool) async {
+    private func fetchReply(query: String) async {
         isTyping = true
         defer { isTyping = false }
+
+        var history: [(role: String, content: String)] = []
+        for msg in messages {
+            history.append((role: msg.role == .user ? "user" : "assistant", content: msg.text))
+        }
+        if history.last?.role != "user" {
+            history.append((role: "user", content: query))
+        }
+
+        let ctx = appState.personaContext.isEmpty ? nil : appState.personaContext
+
         do {
-            try await HonchoService.shared.ensurePeer(name: peerName)
-            if logToHoncho {
-                try? await HonchoService.shared.logMessage(query, peerName: peerName)
-            }
-            let ctx = appState.personaContext.isEmpty ? nil : appState.personaContext
-            let reply = try await HonchoService.shared.coachResponse(
-                query: query,
-                peerName: peerName,
-                personaContext: ctx
+            let reply = try await AnthropicService.shared.coachReply(
+                history: history,
+                personaContext: ctx,
+                userName: userName
             )
 
             let coachMsg = CoachMessage(role: .coach, text: reply)
             messages.append(coachMsg)
             isUnavailable = false
-            isTyping = false  // stop indicator before waiting on audio
+            isTyping = false  // stop typing indicator before waiting on audio
 
             if let idx = messages.indices.last {
                 do {
@@ -277,7 +299,6 @@ private struct MessageRow: View {
                     .background(isPlaying ? Color.white.opacity(0.3) : Color.white.opacity(0.2),
                                 in: Circle())
 
-                // Static waveform bars
                 HStack(spacing: 3) {
                     ForEach([0.4, 0.7, 1.0, 0.6, 0.9, 0.5, 0.8, 0.4, 0.7, 0.6], id: \.self) { h in
                         Capsule()
@@ -334,14 +355,12 @@ private struct GeneratingBubble: View {
         .frame(minWidth: 180)
         .background(Color(.systemGray6), in: .rect(cornerRadius: 18, style: .continuous))
         .task {
-            // Fake progress: accelerates to ~90% over ~8s then stalls until audio arrives
             let steps: [(Double, CGFloat)] = [(1,0.15),(1,0.30),(1,0.45),(1,0.58),(1,0.68),(1,0.76),(1,0.82),(1,0.87),(1,0.90)]
             for (delay, target) in steps {
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 elapsed += Int(delay)
                 progress = target
             }
-            // Stall near 90% until the parent removes this view
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 elapsed += 1

@@ -98,10 +98,14 @@ struct Restaurant: Identifiable, Codable {
     let distanceMeters: Int
     let types: [String]
     var cuisine: String?
-    var healthiestOption: HealthyOption?
+    var phoneNumber: String?
+    var menuItems: [MenuItem]?
+    // Legacy alias used by log helper
+    var healthiestOption: MenuItem? { menuItems?.first }
 }
 
-struct HealthyOption: Codable {
+struct MenuItem: Codable, Identifiable {
+    var id: UUID = UUID()
     let name: String
     let calories: Int
     let proteinG: Double
@@ -109,6 +113,7 @@ struct HealthyOption: Codable {
     let fatG: Double
     let description: String
     let whyHealthy: String
+    let price: String   // e.g. "$12" or "$10–14"
 }
 
 struct Friend: Codable, Identifiable {
@@ -120,6 +125,32 @@ struct Friend: Codable, Identifiable {
     let lastActive: String
 }
 
+struct PlannedMeal: Codable, Identifiable {
+    var id: UUID = UUID()
+    let name: String
+    let timeLabel: String   // "8:00 AM"
+    let hour: Int
+    let minute: Int
+    let calories: Int
+    let description: String
+    let reason: String      // why this time fits the schedule
+
+    enum CodingKeys: String, CodingKey {
+        case name, calories, description, reason
+        case timeLabel = "time_label"
+        case hour, minute
+    }
+}
+
+struct MealPlanResult: Codable {
+    let meals: [PlannedMeal]
+    let summary: String
+
+    enum CodingKeys: String, CodingKey {
+        case meals, summary
+    }
+}
+
 struct BusyTime: Codable, Identifiable {
     var id: Int { hour }
     let hour: Int
@@ -127,10 +158,24 @@ struct BusyTime: Codable, Identifiable {
     let label: String
 }
 
+struct NearbyGym: Identifiable {
+    var id: String { placeId }
+    let placeId: String
+    let name: String
+    let vicinity: String
+    let rating: Double
+    let distanceMeters: Int
+    var distanceLabel: String {
+        distanceMeters < 1000 ? "\(distanceMeters)m" : String(format: "%.1fkm", Double(distanceMeters) / 1000)
+    }
+}
+
 struct GymData: Codable {
     let gymName: String
+    let priceRange: String
     let busyTimes: [BusyTime]
     let recommendedTime: String
     let recommendedHour: Int
+    let bestTimes: [String]
     let reason: String
 }

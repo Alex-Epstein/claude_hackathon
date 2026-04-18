@@ -8,11 +8,9 @@
 import Foundation
 import SwiftUI
 import Combine
-import SwiftData
 
 @MainActor
 final class AppState: ObservableObject {
-    var modelContext: ModelContext?
     @Published var profile: UserProfile? {
         didSet { persistProfile() }
     }
@@ -44,7 +42,7 @@ final class AppState: ObservableObject {
 
     var caloriesRemaining: Int {
         guard let p = profile else { return 0 }
-        return max(0, p.calorieGoal - todayTotals.calories)
+        return p.calorieGoal - todayTotals.calories
     }
 
     /// Structured eating-pattern summary derived from the meals array.
@@ -79,32 +77,22 @@ final class AppState: ObservableObject {
 
     func addMeal(_ meal: MealLog) {
         meals.append(meal)
-        if let persona = fetchOrCreatePersona() {
-            PersonaEngine.shared.update(persona: persona, with: meal)
-        }
-
-        guard let name = profile?.name, !name.isEmpty else { return }
-        let summary = "User logged \(meal.name): \(meal.calories) kcal, \(Int(meal.proteinG))g protein, \(Int(meal.carbsG))g carbs, \(Int(meal.fatG))g fat"
-        // Every 5 meals, also push the full persona snapshot so Honcho's memory reflects structured stats
-        let snapshot: String? = meals.count % 5 == 0 ? personaContext : nil
-        Task.detached {
-            try? await HonchoService.shared.ensurePeer(name: name)
-            try? await HonchoService.shared.logMessage(summary, peerName: name)
-            if let snapshot, !snapshot.isEmpty {
-                try? await HonchoService.shared.logPersonaSnapshot(snapshot, peerName: name)
-            }
-        }
+        let persona = loadPersona()
+        PersonaEngine.shared.update(persona: persona, with: meal)
+        savePersona(persona)
     }
 
-    func fetchOrCreatePersona() -> UserPersona? {
-        guard let modelContext else { return nil }
-        let descriptor = FetchDescriptor<UserPersona>()
-        if let existing = try? modelContext.fetch(descriptor).first {
-            return existing
+    func loadPersona() -> UserPersona {
+        guard let data = UserDefaults.standard.data(forKey: "persona"),
+              let p = try? JSONDecoder().decode(UserPersona.self, from: data)
+        else { return UserPersona() }
+        return p
+    }
+
+    private func savePersona(_ persona: UserPersona) {
+        if let data = try? JSONEncoder().encode(persona) {
+            UserDefaults.standard.set(data, forKey: "persona")
         }
-        let new = UserPersona()
-        modelContext.insert(new)
-        return new
     }
 
     func removeMeal(id: UUID) {

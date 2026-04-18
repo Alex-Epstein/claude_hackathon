@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct AppetightApp: App {
@@ -18,7 +17,6 @@ struct AppetightApp: App {
                 .environmentObject(notifications)
                 .tint(Brand.green)
         }
-        .modelContainer(for: UserPersona.self)
     }
 }
 

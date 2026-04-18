@@ -4,12 +4,10 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct PersonaView: View {
-    @Query private var personas: [UserPersona]
-
-    private var persona: UserPersona? { personas.first }
+    @EnvironmentObject var appState: AppState
+    @State private var persona: UserPersona? = nil
 
     var body: some View {
         NavigationStack {
@@ -31,6 +29,10 @@ struct PersonaView: View {
                 }
             }
             .navigationTitle("My Profile")
+            .onAppear {
+                let p = appState.loadPersona()
+                persona = p.totalMealsLogged > 0 ? p : nil
+            }
         }
     }
 
@@ -62,26 +64,20 @@ struct PersonaView: View {
             .clipShape(.rect(cornerRadius: 8))
             .frame(height: 24)
             HStack {
-                Label("\(Int(p.averageProteinG))g protein", systemImage: "circle.fill")
-                    .foregroundStyle(Brand.green)
-                Label("\(Int(p.averageCarbsG))g carbs", systemImage: "circle.fill")
-                    .foregroundStyle(.orange)
-                Label("\(Int(p.averageFatG))g fat", systemImage: "circle.fill")
-                    .foregroundStyle(.pink)
+                Label("\(Int(p.averageProteinG))g protein", systemImage: "circle.fill").foregroundStyle(Brand.green)
+                Label("\(Int(p.averageCarbsG))g carbs",   systemImage: "circle.fill").foregroundStyle(.orange)
+                Label("\(Int(p.averageFatG))g fat",       systemImage: "circle.fill").foregroundStyle(.pink)
             }
             .font(.caption)
             Text("You tend to eat more \(p.dominantMacro).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
         }
         .padding()
         .background(.gray.opacity(0.06), in: .rect(cornerRadius: 16))
     }
 
     private func macroBar(_ label: String, value: Double, color: Color) -> some View {
-        let total = 2000.0 // rough denominator for visual width
-        return color
-            .frame(width: max(4, CGFloat(value / total) * 340))
+        color.frame(width: max(4, CGFloat(value / 2000.0) * 340))
     }
 
     private func habitsCard(_ p: UserPersona) -> some View {
@@ -105,12 +101,9 @@ struct PersonaView: View {
             Text("Most logged foods").font(.headline)
             ForEach(Array(top5), id: \.key) { food, count in
                 HStack {
-                    Text(food.capitalized)
-                        .font(.subheadline)
+                    Text(food.capitalized).font(.subheadline)
                     Spacer()
-                    Text("\(count)x")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("\(count)x").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
