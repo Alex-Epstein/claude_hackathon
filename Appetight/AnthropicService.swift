@@ -26,17 +26,17 @@ struct RestaurantRecommendation: Codable {
     let placeIndex: Int
     let restaurantName: String
     let cuisine: String
-    let healthiestOption: HealthyOptionPayload
+    let menuItems: [MenuItemPayload]
 
     enum CodingKeys: String, CodingKey {
         case placeIndex = "place_index"
         case restaurantName = "restaurant_name"
         case cuisine
-        case healthiestOption = "healthiest_option"
+        case menuItems = "menu_items"
     }
 }
 
-struct HealthyOptionPayload: Codable {
+struct MenuItemPayload: Codable {
     let name: String
     let calories: Int
     let proteinG: Double
@@ -44,9 +44,10 @@ struct HealthyOptionPayload: Codable {
     let fatG: Double
     let description: String
     let whyHealthy: String
+    let price: String
 
     enum CodingKeys: String, CodingKey {
-        case name, calories, description
+        case name, calories, description, price
         case proteinG = "protein_g"
         case carbsG = "carbs_g"
         case fatG = "fat_g"
@@ -164,9 +165,26 @@ actor AnthropicService {
         }.joined(separator: "\n")
 
         let systemPrompt = """
-        You are a nutrition expert. Output ONLY raw JSON — no markdown, no code fences, no explanation. Return a JSON array where each element is:
-        {"place_index":1,"restaurant_name":"name","cuisine":"type","healthiest_option":{"name":"dish","calories":0,"protein_g":0,"carbs_g":0,"fat_g":0,"description":"brief","why_healthy":"one sentence"}}
-        Start your response with [ and end with ]. Nothing else.
+        You are a nutrition expert. Output ONLY raw JSON — no markdown, no code fences, no explanation.
+        Return a JSON array. Each element must follow this exact schema:
+        {
+          "place_index": 1,
+          "restaurant_name": "Chipotle",
+          "cuisine": "Mexican",
+          "menu_items": [
+            {
+              "name": "Burrito Bowl (chicken, fajita veggies, black beans, salsa)",
+              "calories": 540,
+              "protein_g": 43,
+              "carbs_g": 62,
+              "fat_g": 11,
+              "description": "High protein bowl, no cheese or sour cream",
+              "why_healthy": "Low fat, high protein, complex carbs",
+              "price": "$10.50"
+            }
+          ]
+        }
+        Include 3 menu items per restaurant ranked healthiest first. Use REAL estimated calorie counts — never 0. Start response with [ and end with ].
         """
 
         let userPrompt = """

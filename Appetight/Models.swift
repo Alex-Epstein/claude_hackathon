@@ -98,10 +98,13 @@ struct Restaurant: Identifiable, Codable {
     let distanceMeters: Int
     let types: [String]
     var cuisine: String?
-    var healthiestOption: HealthyOption?
+    var menuItems: [MenuItem]?
+    // Legacy alias used by log helper
+    var healthiestOption: MenuItem? { menuItems?.first }
 }
 
-struct HealthyOption: Codable {
+struct MenuItem: Codable, Identifiable {
+    var id: UUID = UUID()
     let name: String
     let calories: Int
     let proteinG: Double
@@ -109,6 +112,7 @@ struct HealthyOption: Codable {
     let fatG: Double
     let description: String
     let whyHealthy: String
+    let price: String   // e.g. "$12" or "$10–14"
 }
 
 struct Friend: Codable, Identifiable {

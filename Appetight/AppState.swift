@@ -42,7 +42,7 @@ final class AppState: ObservableObject {
 
     var caloriesRemaining: Int {
         guard let p = profile else { return 0 }
-        return max(0, p.calorieGoal - todayTotals.calories)
+        return p.calorieGoal - todayTotals.calories
     }
 
     /// Structured eating-pattern summary derived from the meals array.
