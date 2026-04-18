@@ -84,23 +84,11 @@ actor AnthropicService {
         let key = apiKey()
         guard !key.isEmpty else { throw AnthropicError.missingKey }
         let systemPrompt = """
-        You are a nutrition analysis expert. Analyze the food in the image and return a JSON object with:
-        { "name": string, "calories": int, "proteinG": float, "carbsG": float, "fatG": float, "servingDescription": string }
-        Return ONLY the JSON, no markdown, no explanation.
+        You are a nutrition expert. Analyze food images and reply ONLY with a JSON object — no markdown, no code fences:
+        {"name":"food name","calories":0,"protein_g":0,"carbs_g":0,"fat_g":0,"serving_description":"e.g. 1 cup"}
+        If multiple foods, sum the totals. Start your response with { and end with }.
         \(personaContext ?? "")
         """
-        // let systemPrompt = """
-        // You are a nutrition expert. Analyze food images and reply ONLY with a JSON object:
-        // {
-        //   "name": "food name",
-        //   "calories": number,
-        //   "protein_g": number,
-        //   "carbs_g": number,
-        //   "fat_g": number,
-        //   "serving_description": "e.g. 1 cup, 200g"
-        // }
-        // If multiple foods, sum the totals. Be accurate and concise.
-        // """
 
         let body: [String: Any] = [
             "model": model,
@@ -176,21 +164,9 @@ actor AnthropicService {
         }.joined(separator: "\n")
 
         let systemPrompt = """
-        You are a nutrition expert helping someone make healthy restaurant choices. Reply ONLY with a JSON array of recommendations — one for each restaurant. Format:
-        [{
-          "place_index": number,
-          "restaurant_name": "name",
-          "cuisine": "type",
-          "healthiest_option": {
-            "name": "dish name",
-            "calories": number,
-            "protein_g": number,
-            "carbs_g": number,
-            "fat_g": number,
-            "description": "brief description",
-            "why_healthy": "one sentence"
-          }
-        }]
+        You are a nutrition expert. Output ONLY raw JSON — no markdown, no code fences, no explanation. Return a JSON array where each element is:
+        {"place_index":1,"restaurant_name":"name","cuisine":"type","healthiest_option":{"name":"dish","calories":0,"protein_g":0,"carbs_g":0,"fat_g":0,"description":"brief","why_healthy":"one sentence"}}
+        Start your response with [ and end with ]. Nothing else.
         """
 
         let userPrompt = """
@@ -282,18 +258,36 @@ actor AnthropicService {
 
     // MARK: - JSON extraction
 
+    /// Strip markdown code fences (```json ... ``` or ``` ... ```) then extract.
+    private func stripFences(_ text: String) -> String {
+        var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Remove opening fence
+        if t.hasPrefix("```") {
+            if let newline = t.firstIndex(of: "\n") {
+                t = String(t[t.index(after: newline)...])
+            }
+        }
+        // Remove closing fence
+        if t.hasSuffix("```") {
+            t = String(t.dropLast(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return t
+    }
+
     private func extractJSONObject(_ text: String) -> String? {
-        guard let start = text.firstIndex(of: "{"),
-              let end = text.lastIndex(of: "}")
+        let t = stripFences(text)
+        guard let start = t.firstIndex(of: "{"),
+              let end = t.lastIndex(of: "}")
         else { return nil }
-        return String(text[start ... end])
+        return String(t[start ... end])
     }
 
     private func extractJSONArray(_ text: String) -> String? {
-        guard let start = text.firstIndex(of: "["),
-              let end = text.lastIndex(of: "]")
+        let t = stripFences(text)
+        guard let start = t.firstIndex(of: "["),
+              let end = t.lastIndex(of: "]")
         else { return nil }
-        return String(text[start ... end])
+        return String(t[start ... end])
     }
 
     private func decodeJSON(_ raw: String) throws -> FoodAnalysis {

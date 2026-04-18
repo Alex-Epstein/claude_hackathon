@@ -13,4 +13,5 @@ nonisolated enum APIKeyStore {
     static let anthropic = ""
     static let googleMaps = ""
     static let honcho = ""
+    // Optional: add Honcho key for AI coach memory
 }
