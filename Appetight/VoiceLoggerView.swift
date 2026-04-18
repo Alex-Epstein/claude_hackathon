@@ -152,8 +152,9 @@ struct VoiceLoggerView: View {
         analyzing = true
         errorMessage = nil
         defer { analyzing = false }
+        let ctx = appState.personaContext.isEmpty ? nil : appState.personaContext
         do {
-            analysis = try await AnthropicService.shared.analyzeVoiceLog(transcript: speech.transcript)
+            analysis = try await AnthropicService.shared.analyzeVoiceLog(transcript: speech.transcript, personaContext: ctx)
         } catch {
             errorMessage = error.localizedDescription
         }

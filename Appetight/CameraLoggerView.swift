@@ -159,10 +159,11 @@ struct CameraLoggerView: View {
         defer { analyzing = false }
 
         let base64 = data.base64EncodedString()
+        let ctx = appState.personaContext.isEmpty ? nil : appState.personaContext
         do {
             analysis = try await AnthropicService.shared.analyzeFoodImage(
                 base64Jpeg: base64,
-                persona: fetchPersona() // fetch from SwiftData context
+                personaContext: ctx
             )
         } catch {
             errorMessage = error.localizedDescription

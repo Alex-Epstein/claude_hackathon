@@ -12,4 +12,5 @@ nonisolated enum APIKeyStore {
     // Paste your keys here before building
     static let anthropic = ""
     static let googleMaps = ""
+    static let honcho = ""
 }

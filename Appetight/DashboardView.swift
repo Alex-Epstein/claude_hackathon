@@ -6,7 +6,7 @@
 import SwiftUI
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case today, hungry, gym, friends
+    case today, hungry, gym, friends, coach
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -14,6 +14,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .hungry: "Hungry"
         case .gym: "Gym"
         case .friends: "Friends"
+        case .coach: "Coach"
         }
     }
     var systemImage: String {
@@ -22,6 +23,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .hungry: "fork.knife"
         case .gym: "dumbbell.fill"
         case .friends: "person.2.fill"
+        case .coach: "sparkles"
         }
     }
 }
@@ -53,6 +55,10 @@ struct DashboardView: View {
             friendsTab
                 .tabItem { Label(MainTab.friends.title, systemImage: MainTab.friends.systemImage) }
                 .tag(MainTab.friends)
+
+            coachTab
+                .tabItem { Label(MainTab.coach.title, systemImage: MainTab.coach.systemImage) }
+                .tag(MainTab.coach)
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingCamera) { CameraLoggerView() }
@@ -234,6 +240,15 @@ struct DashboardView: View {
             .navigationTitle("Friends")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemGroupedBackground))
+        }
+    }
+
+    private var coachTab: some View {
+        NavigationStack {
+            CoachView()
+                .navigationTitle("AI Coach")
+                .navigationBarTitleDisplayMode(.inline)
+                .background(Color(.systemGroupedBackground))
         }
     }
 }

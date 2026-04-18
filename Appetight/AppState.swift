@@ -45,14 +45,52 @@ final class AppState: ObservableObject {
         return max(0, p.calorieGoal - todayTotals.calories)
     }
 
+    /// Structured eating-pattern summary derived from the meals array.
+    /// Injected into both Anthropic food-analysis prompts and Honcho coach queries.
+    var personaContext: String {
+        guard !meals.isEmpty else { return "" }
+        let cal = Calendar.current
+        let byDay = Dictionary(grouping: meals) { cal.startOfDay(for: $0.loggedAt) }
+        let dailyTotals = byDay.values.map { $0.reduce(0) { $0 + $1.calories } }
+        let avgDaily = dailyTotals.reduce(0, +) / max(1, dailyTotals.count)
+        let n = Double(meals.count)
+        let avgP = meals.reduce(0.0) { $0 + $1.proteinG } / n
+        let avgC = meals.reduce(0.0) { $0 + $1.carbsG } / n
+        let avgF = meals.reduce(0.0) { $0 + $1.fatG } / n
+        let dominant = avgP * 4 >= avgC * 4 && avgP * 4 >= avgF * 9 ? "protein"
+                     : avgC * 4 >= avgF * 9 ? "carbs" : "fat"
+        var foodCounts: [String: Int] = [:]
+        meals.forEach { foodCounts[$0.name.lowercased(), default: 0] += 1 }
+        var hourCounts: [Int: Int] = [:]
+        meals.map { cal.component(.hour, from: $0.loggedAt) }.forEach { hourCounts[$0, default: 0] += 1 }
+        var lines = ["[User Eating Profile]"]
+        lines.append("- Avg daily calories: \(avgDaily) kcal")
+        lines.append("- Avg macros per meal: \(Int(avgP))g protein, \(Int(avgC))g carbs, \(Int(avgF))g fat")
+        lines.append("- Dominant macro tendency: \(dominant)")
+        lines.append("- Total meals logged: \(meals.count)")
+        if let top = foodCounts.max(by: { $0.value < $1.value })?.key { lines.append("- Most logged food: \(top)") }
+        if let peak = hourCounts.max(by: { $0.value < $1.value })?.key { lines.append("- Usually eats around: \(peak):00") }
+        return lines.joined(separator: "\n")
+    }
+
     // MARK: - Mutations
 
     func addMeal(_ meal: MealLog) {
         meals.append(meal)
-        // Inside addMeal(_ meal: MealLog):
-        // ADD these after you append the meal to your array/store:
         if let persona = fetchOrCreatePersona() {
             PersonaEngine.shared.update(persona: persona, with: meal)
+        }
+
+        guard let name = profile?.name, !name.isEmpty else { return }
+        let summary = "User logged \(meal.name): \(meal.calories) kcal, \(Int(meal.proteinG))g protein, \(Int(meal.carbsG))g carbs, \(Int(meal.fatG))g fat"
+        // Every 5 meals, also push the full persona snapshot so Honcho's memory reflects structured stats
+        let snapshot: String? = meals.count % 5 == 0 ? personaContext : nil
+        Task.detached {
+            try? await HonchoService.shared.ensurePeer(name: name)
+            try? await HonchoService.shared.logMessage(summary, peerName: name)
+            if let snapshot, !snapshot.isEmpty {
+                try? await HonchoService.shared.logPersonaSnapshot(snapshot, peerName: name)
+            }
         }
     }
 

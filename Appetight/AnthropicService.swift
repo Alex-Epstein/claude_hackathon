@@ -80,14 +80,14 @@ actor AnthropicService {
 
     // MARK: - Food image analysis
 
-    func analyzeFoodImage(base64Jpeg: String) async throws -> FoodAnalysis {
+    func analyzeFoodImage(base64Jpeg: String, personaContext: String? = nil) async throws -> FoodAnalysis {
         let key = apiKey()
         guard !key.isEmpty else { throw AnthropicError.missingKey }
         let systemPrompt = """
         You are a nutrition analysis expert. Analyze the food in the image and return a JSON object with:
         { "name": string, "calories": int, "proteinG": float, "carbsG": float, "fatG": float, "servingDescription": string }
         Return ONLY the JSON, no markdown, no explanation.
-        \(persona?.claudeContext ?? "")
+        \(personaContext ?? "")
         """
         // let systemPrompt = """
         // You are a nutrition expert. Analyze food images and reply ONLY with a JSON object:
@@ -128,7 +128,7 @@ actor AnthropicService {
 
     // MARK: - Voice transcript → food analysis
 
-    func analyzeVoiceLog(transcript: String) async throws -> FoodAnalysis {
+    func analyzeVoiceLog(transcript: String, personaContext: String? = nil) async throws -> FoodAnalysis {
         let key = apiKey()
         guard !key.isEmpty else { throw AnthropicError.missingKey }
 
@@ -144,6 +144,7 @@ actor AnthropicService {
         Use standard portion sizes if not specified.
 
         If multiple, show the aggregate macros. Be accurate and concise - overestimate if needed.
+        \(personaContext ?? "")
         """
 
         let body: [String: Any] = [
