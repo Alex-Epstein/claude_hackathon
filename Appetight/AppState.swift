@@ -8,9 +8,11 @@
 import Foundation
 import SwiftUI
 import Combine
+import SwiftData
 
 @MainActor
 final class AppState: ObservableObject {
+    var modelContext: ModelContext?
     @Published var profile: UserProfile? {
         didSet { persistProfile() }
     }
@@ -95,6 +97,7 @@ final class AppState: ObservableObject {
     }
 
     func fetchOrCreatePersona() -> UserPersona? {
+        guard let modelContext else { return nil }
         let descriptor = FetchDescriptor<UserPersona>()
         if let existing = try? modelContext.fetch(descriptor).first {
             return existing

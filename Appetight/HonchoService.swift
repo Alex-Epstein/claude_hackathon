@@ -10,13 +10,13 @@ import Foundation
 actor HonchoService {
     static let shared = HonchoService()
 
-    private let baseURL = "https://api.honcho.dev/v1"
-    private let workspaceId = "appetight-app"
-    private let sessionId = "main-session"
+    private let baseURL = "https://api.honcho.dev"
+    private let workspaceId = "claude_hackathon"
+    private let sessionId = "appetight_app"
 
     private let coachSystemPrompt = """
-    You are an adaptive fitness coach. You know this user's meal history, fitness goals, and patterns. \
-    Be encouraging but honest. Keep responses under 3 sentences. Personalize based on everything you know.
+    You are a drill sergeant coach. You know this user's meal history, fitness goals, and patterns. \
+    Be firm like a real tough guy, be kinda evil too. Keep responses short and try to end with exclamation marks and emojis!! Keep responses very short (12 words / 1 sentence)
     """
 
     private func apiKey() -> String { APIKeyStore.honcho }
@@ -27,16 +27,15 @@ actor HonchoService {
         let key = apiKey()
         guard !key.isEmpty else { throw HonchoError.missingKey }
         let peerId = slugify(name)
-        let url = URL(string: "\(baseURL)/workspaces/\(workspaceId)/peers/\(peerId)")!
+        let url = URL(string: "\(baseURL)/v3/workspaces/\(workspaceId)/peers")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: ["name": name])
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["id": peerId])
 
         let (_, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw HonchoError.invalidResponse }
-        // 200 = created, 409 = already exists — both are fine
         guard http.statusCode < 400 || http.statusCode == 409 else {
             throw HonchoError.httpError(http.statusCode)
         }
@@ -46,14 +45,13 @@ actor HonchoService {
         let key = apiKey()
         guard !key.isEmpty else { throw HonchoError.missingKey }
         let peerId = slugify(peerName)
-        let url = URL(string: "\(baseURL)/workspaces/\(workspaceId)/peers/\(peerId)/sessions/\(sessionId)/messages")!
+        let url = URL(string: "\(baseURL)/v3/workspaces/\(workspaceId)/sessions/\(sessionId)/messages")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "content": text,
-            "is_user": true
+            "messages": [["peer_id": peerId, "content": text]]
         ])
 
         let (_, response) = try await URLSession.shared.data(for: req)
@@ -72,35 +70,29 @@ actor HonchoService {
         let key = apiKey()
         guard !key.isEmpty else { throw HonchoError.missingKey }
         let peerId = slugify(peerName)
-        let url = URL(string: "\(baseURL)/workspaces/\(workspaceId)/peers/\(peerId)/chat")!
+        let url = URL(string: "\(baseURL)/v3/workspaces/\(workspaceId)/peers/\(peerId)/chat")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        // Combine system prompt + structured local stats + user query so Honcho's
-        // semantic memory and the derived analytics both inform the response.
         let contextSection = personaContext.map { "\n\n\($0)" } ?? ""
         req.httpBody = try JSONSerialization.data(withJSONObject: [
             "query": "\(coachSystemPrompt)\(contextSection)\n\n\(query)",
-            "session_id": sessionId
+            "reasoning_level": "low"
         ])
 
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse, http.statusCode < 400 else {
-            throw HonchoError.invalidResponse
+            throw HonchoError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0)
         }
 
+        let raw = String(data: data, encoding: .utf8) ?? "(empty)"
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw HonchoError.invalidResponse
+            throw HonchoError.parseError(raw)
         }
-
-        // Try common response field names from dialectic APIs
         if let content = json["content"] as? String { return content }
-        if let response = json["response"] as? String { return response }
-        if let message = json["message"] as? String { return message }
-        if let text = json["text"] as? String { return text }
-
-        throw HonchoError.parseError
+        if let answer = json["answer"] as? String { return answer }
+        throw HonchoError.parseError(raw)
     }
 
     // MARK: - Helpers
@@ -117,14 +109,14 @@ enum HonchoError: LocalizedError {
     case missingKey
     case invalidResponse
     case httpError(Int)
-    case parseError
+    case parseError(String)
 
     var errorDescription: String? {
         switch self {
         case .missingKey: return "Honcho API key not set."
         case .invalidResponse: return "Invalid response from Honcho."
-        case .httpError(let code): return "Honcho error \(code)."
-        case .parseError: return "Could not parse Honcho response."
+        case .httpError(let code): return "Honcho HTTP \(code)."
+        case .parseError(let raw): return "Parse error: \(raw.prefix(200))"
         }
     }
 }

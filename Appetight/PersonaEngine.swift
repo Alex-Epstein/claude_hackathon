@@ -13,14 +13,14 @@ final class PersonaEngine {
 
     /// Call this every time a meal is logged
     func update(persona: UserPersona, with meal: MealLog) {
-        let dateKey = ISO8601DateFormatter().string(from: meal.date).prefix(10).description
+        let dateKey = ISO8601DateFormatter().string(from: meal.loggedAt).prefix(10).description
 
         // Totals
         persona.totalMealsLogged += 1
         persona.macroProteinTotal += meal.proteinG
         persona.macroCarbsTotal  += meal.carbsG
         persona.macroFatTotal    += meal.fatG
-        persona.mealTimestamps.append(meal.date)
+        persona.mealTimestamps.append(meal.loggedAt)
 
         // Daily calories rollup
         var daily = persona.dailyCalories
