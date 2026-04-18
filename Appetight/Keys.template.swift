@@ -1,0 +1,8 @@
+// Keys.template.swift — committed to git (no real keys)
+// Duplicate this file, rename to Keys.swift, and fill in your keys.
+
+enum Keys {
+    static let anthropic  = ""   // https://console.anthropic.com
+    static let googleMaps = ""   // https://console.cloud.google.com (enable Places API)
+    static let honcho     = ""   // https://honcho.dev (optional AI coach memory)
+}

@@ -8,10 +8,9 @@
 
 import Foundation
 
+// Keys are stored in Keys.swift (gitignored). See Keys.template.swift to set up.
 nonisolated enum APIKeyStore {
-    // Paste your keys here before building
-    static let anthropic = ""
-    static let googleMaps = ""
-    static let honcho = ""
-    // Optional: add Honcho key for AI coach memory
+    static let anthropic  = Keys.anthropic
+    static let googleMaps = Keys.googleMaps
+    static let honcho     = Keys.honcho
 }
