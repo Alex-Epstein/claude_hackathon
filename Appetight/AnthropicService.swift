@@ -203,7 +203,7 @@ actor AnthropicService {
 
         let body: [String: Any] = [
             "model": model,
-            "max_tokens": 2048,
+            "max_tokens": 4096,
             "system": systemPrompt,
             "messages": [["role": "user", "content": userPrompt]],
         ]

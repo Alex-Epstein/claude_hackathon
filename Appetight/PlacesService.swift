@@ -61,7 +61,7 @@ actor PlacesService {
             throw PlacesError.httpError(msg)
         }
 
-        let limited = results.prefix(20)
+        let limited = results.prefix(8)
         return limited.compactMap { raw in
             guard let placeId = raw["place_id"] as? String,
                   let name = raw["name"] as? String,

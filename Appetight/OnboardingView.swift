@@ -10,8 +10,9 @@ struct OnboardingView: View {
 
     @State private var name = ""
     @State private var age = ""
-    @State private var weightKg = ""
-    @State private var heightCm = ""
+    @State private var weightLbs = ""
+    @State private var heightFeet = ""
+    @State private var heightInches = ""
     @State private var gender: Gender = .male
     @State private var activity: ActivityLevel = .moderate
     @State private var goal: Goal = .maintain
@@ -26,7 +27,7 @@ struct OnboardingView: View {
     }
 
     var canCalculate: Bool {
-        !age.isEmpty && !weightKg.isEmpty && !heightCm.isEmpty
+        !age.isEmpty && !weightLbs.isEmpty && !heightFeet.isEmpty
     }
 
     var body: some View {
@@ -73,14 +74,22 @@ struct OnboardingView: View {
                         .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
                 }
-                labeled("Weight (kg)") {
-                    TextField("70", text: $weightKg)
+                labeled("Weight (lbs)") {
+                    TextField("155", text: $weightLbs)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
                 }
-                labeled("Height (cm)") {
-                    TextField("170", text: $heightCm)
-                        .keyboardType(.decimalPad)
+            }
+
+            HStack(spacing: 10) {
+                labeled("Height (ft)") {
+                    TextField("5", text: $heightFeet)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(.roundedBorder)
+                }
+                labeled("Height (in)") {
+                    TextField("11", text: $heightInches)
+                        .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
                 }
             }
@@ -189,10 +198,23 @@ struct OnboardingView: View {
         }
     }
 
+    private var weightKg: Double? {
+        guard let lbs = Double(weightLbs) else { return nil }
+        return lbs * 0.453592
+    }
+
+    private var heightCm: Double? {
+        let ft = Double(heightFeet) ?? 0
+        let inches = Double(heightInches) ?? 0
+        let totalInches = ft * 12 + inches
+        guard totalInches > 0 else { return nil }
+        return totalInches * 2.54
+    }
+
     private func calculate() {
         guard let ageInt = Int(age),
-              let wkg = Double(weightKg),
-              let hcm = Double(heightCm)
+              let wkg = weightKg,
+              let hcm = heightCm
         else { return }
         let tdee = TDEE.calculateTDEE(weightKg: wkg, heightCm: hcm, age: ageInt, gender: gender, activity: activity)
         let calGoal = TDEE.calorieGoal(tdee: tdee, goal: goal)
@@ -203,8 +225,8 @@ struct OnboardingView: View {
     private func save() {
         guard let result,
               let ageInt = Int(age),
-              let wkg = Double(weightKg),
-              let hcm = Double(heightCm)
+              let wkg = weightKg,
+              let hcm = heightCm
         else { return }
         appState.profile = UserProfile(
             name: name,
