@@ -6,14 +6,14 @@
 import SwiftUI
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case today, hungry, gym, friends, coach
+    case today, hungry, gym, plan, coach
     var id: String { rawValue }
     var title: String {
         switch self {
         case .today: "Today"
         case .hungry: "Hungry"
         case .gym: "Gym"
-        case .friends: "Friends"
+        case .plan: "Plan"
         case .coach: "Coach"
         }
     }
@@ -22,7 +22,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .today: "flame.fill"
         case .hungry: "fork.knife"
         case .gym: "dumbbell.fill"
-        case .friends: "person.2.fill"
+        case .plan: "calendar"
         case .coach: "sparkles"
         }
     }
@@ -52,9 +52,9 @@ struct DashboardView: View {
                 .tabItem { Label(MainTab.gym.title, systemImage: MainTab.gym.systemImage) }
                 .tag(MainTab.gym)
 
-            friendsTab
-                .tabItem { Label(MainTab.friends.title, systemImage: MainTab.friends.systemImage) }
-                .tag(MainTab.friends)
+            planTab
+                .tabItem { Label(MainTab.plan.title, systemImage: MainTab.plan.systemImage) }
+                .tag(MainTab.plan)
 
             coachTab
                 .tabItem { Label(MainTab.coach.title, systemImage: MainTab.coach.systemImage) }
@@ -231,13 +231,13 @@ struct DashboardView: View {
         }
     }
 
-    private var friendsTab: some View {
+    private var planTab: some View {
         NavigationStack {
             ScrollView {
-                FriendsView()
+                MealPlanView()
                     .padding()
             }
-            .navigationTitle("Friends")
+            .navigationTitle("Meal Planning")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemGroupedBackground))
         }

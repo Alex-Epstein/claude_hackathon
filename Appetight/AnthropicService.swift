@@ -220,15 +220,17 @@ actor AnthropicService {
         let hour = Calendar.current.component(.hour, from: now)
 
         let systemPrompt = """
-        You are a gym analytics expert. Generate realistic gym busy time data for today. Reply ONLY with JSON:
+        You are a gym analytics expert. Generate realistic gym busy time data for today. Reply ONLY with raw JSON — no markdown:
         {
           "gym_name": "name",
-          "busy_times": [{"hour": 6, "busyness": 30, "label": "6 AM"}, …for hours 5 through 23],
-          "recommended_time": "e.g. 2 PM",
+          "price_range": "$30-50/month",
+          "busy_times": [{"hour": 6, "busyness": 30, "label": "6 AM"}, {"hour": 7, "busyness": 55, "label": "7 AM"}],
+          "recommended_time": "2 PM",
           "recommended_hour": 14,
+          "best_times": ["2 PM", "10 AM", "8 PM"],
           "reason": "brief explanation"
         }
-        Busyness is 0–100. Typical patterns: morning rush 7–9am, lunch 12–1pm, evening rush 5–7pm.
+        Include hours 5 through 23 in busy_times. Busyness is 0–100. Typical patterns: morning rush 7–9am, lunch 12–1pm, evening rush 5–7pm. Start response with {.
         """
 
         let body: [String: Any] = [
@@ -243,6 +245,61 @@ actor AnthropicService {
 
         let raw = try await sendRequest(body: body, apiKey: key)
         return try decodeGymData(raw)
+    }
+
+    // MARK: - Meal plan
+
+    func generateMealPlan(
+        events: [(title: String, start: String, end: String)],
+        calorieGoal: Int,
+        goal: String,
+        personaContext: String?
+    ) async throws -> MealPlanResult {
+        let key = apiKey()
+        guard !key.isEmpty else { throw AnthropicError.missingKey }
+
+        let schedule = events.isEmpty
+            ? "No calendar events today — free schedule."
+            : events.map { "- \($0.title): \($0.start) – \($0.end)" }.joined(separator: "\n")
+
+        let systemPrompt = """
+        You are a nutrition coach. Output ONLY raw JSON — no markdown, no code fences. Schema:
+        {
+          "meals": [
+            {"name":"Overnight oats","time_label":"7:30 AM","hour":7,"minute":30,"calories":420,"description":"High protein oats with berries","reason":"Before 9am meeting, easy prep"},
+            ...
+          ],
+          "summary": "One sentence overall plan rationale"
+        }
+        Plan 3-5 meals/snacks spread across the day. Avoid scheduling meals during events. Use REAL calorie values summing to ~\(calorieGoal) kcal.
+        \(personaContext ?? "")
+        """
+
+        let userPrompt = """
+        Goal: \(goal). Daily calorie target: \(calorieGoal) kcal.
+
+        Today's schedule:
+        \(schedule)
+
+        Create a personalized meal plan that works around this schedule.
+        """
+
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 1024,
+            "system": systemPrompt,
+            "messages": [["role": "user", "content": userPrompt]],
+        ]
+
+        let raw = try await sendRequest(body: body, apiKey: key)
+        guard let json = extractJSONObject(raw), let data = json.data(using: .utf8) else {
+            throw AnthropicError.parseError(raw)
+        }
+        do {
+            return try JSONDecoder().decode(MealPlanResult.self, from: data)
+        } catch {
+            throw AnthropicError.parseError(raw)
+        }
     }
 
     // MARK: - Coach chat
@@ -367,15 +424,19 @@ actor AnthropicService {
         let dec = JSONDecoder()
         struct Payload: Codable {
             let gymName: String
+            let priceRange: String
             let busyTimes: [BusyTime]
             let recommendedTime: String
             let recommendedHour: Int
+            let bestTimes: [String]
             let reason: String
             enum CodingKeys: String, CodingKey {
                 case gymName = "gym_name"
+                case priceRange = "price_range"
                 case busyTimes = "busy_times"
                 case recommendedTime = "recommended_time"
                 case recommendedHour = "recommended_hour"
+                case bestTimes = "best_times"
                 case reason
             }
         }
@@ -383,9 +444,11 @@ actor AnthropicService {
             let p = try dec.decode(Payload.self, from: data)
             return GymData(
                 gymName: p.gymName,
+                priceRange: p.priceRange,
                 busyTimes: p.busyTimes,
                 recommendedTime: p.recommendedTime,
                 recommendedHour: p.recommendedHour,
+                bestTimes: p.bestTimes,
                 reason: p.reason
             )
         } catch {

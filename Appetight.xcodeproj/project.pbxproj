@@ -254,6 +254,8 @@
 				DEVELOPMENT_TEAM = S25B849LM2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Appetight reads your calendar to schedule meals around your day.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "Appetight reads your calendar to schedule meals around your day.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Appetight needs camera access to analyze your food photos.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Appetight uses your location to find nearby restaurants and gyms.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Appetight needs microphone access to log meals by voice.";
@@ -291,6 +293,8 @@
 				DEVELOPMENT_TEAM = S25B849LM2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Appetight reads your calendar to schedule meals around your day.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "Appetight reads your calendar to schedule meals around your day.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Appetight needs camera access to analyze your food photos.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Appetight uses your location to find nearby restaurants and gyms.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Appetight needs microphone access to log meals by voice.";

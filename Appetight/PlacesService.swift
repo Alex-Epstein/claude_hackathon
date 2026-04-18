@@ -49,7 +49,7 @@ actor PlacesService {
         return phone
     }
 
-    func nearbyGyms(lat: Double, lng: Double, radius: Int = 3000) async throws -> [String] {
+    func nearbyGyms(lat: Double, lng: Double, radius: Int = 5000) async throws -> [NearbyGym] {
         let key = apiKey()
         guard !key.isEmpty else { throw PlacesError.missingKey }
 
@@ -60,7 +60,22 @@ actor PlacesService {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let results = json["results"] as? [[String: Any]]
         else { return [] }
-        return results.compactMap { $0["name"] as? String }
+
+        return results.prefix(5).compactMap { raw -> NearbyGym? in
+            guard let placeId = raw["place_id"] as? String,
+                  let name = raw["name"] as? String,
+                  let geometry = raw["geometry"] as? [String: Any],
+                  let location = geometry["location"] as? [String: Any],
+                  let rlat = location["lat"] as? Double,
+                  let rlng = location["lng"] as? Double
+            else { return nil }
+            let vicinity = (raw["vicinity"] as? String) ?? ""
+            let rating = (raw["rating"] as? Double) ?? 0
+            let dLat = (rlat - lat) * 111320
+            let dLng = (rlng - lng) * 111320 * cos(lat * .pi / 180)
+            let dist = Int(sqrt(dLat * dLat + dLng * dLng).rounded())
+            return NearbyGym(placeId: placeId, name: name, vicinity: vicinity, rating: rating, distanceMeters: dist)
+        }
     }
 
     private func parseRestaurants(data: Data, originLat: Double, originLng: Double) throws -> [Restaurant] {
