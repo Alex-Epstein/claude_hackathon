@@ -53,13 +53,7 @@ struct OnboardingView: View {
             .padding()
             .padding(.bottom, 40)
         }
-        .background(
-            LinearGradient(
-                colors: [Brand.green.opacity(0.08), .white],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
     @ViewBuilder
@@ -131,7 +125,7 @@ struct OnboardingView: View {
             .padding(.top, 4)
         }
         .padding()
-        .background(.white, in: .rect(cornerRadius: 16))
+        .background(Color(.systemBackground), in: .rect(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 
@@ -172,7 +166,7 @@ struct OnboardingView: View {
             .disabled(name.isEmpty)
         }
         .padding()
-        .background(.white, in: .rect(cornerRadius: 16))
+        .background(Color(.systemBackground), in: .rect(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16).stroke(Brand.green, lineWidth: 2)
         )
