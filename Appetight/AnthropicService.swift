@@ -137,6 +137,8 @@ actor AnthropicService {
           "fat_g": number
         }
         Use standard portion sizes if not specified.
+
+        If multiple, show the aggregate macros. Be accurate and concise - overestimate if needed.
         """
 
         let body: [String: Any] = [
